@@ -5,7 +5,9 @@
  * Safe to re-run: all upserts are idempotent by UUID.
  */
 
-import 'dotenv/config'
+import { config } from 'dotenv'
+config({ path: '.env.local' })
+config()
 import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
@@ -117,14 +119,15 @@ async function main() {
 
     // 2. Stream conversations using incremental JSON parsing
     // Use dynamic import to avoid TypeScript issues with stream-json's types
+    // stream-json v3 is ESM with a chain-based API; use .asStream() for .pipe() pipelines.
     const { parser } = await import('stream-json')
-    const { streamArray } = await import('stream-json/streamers/StreamArray.js')
+    const { streamArray } = await import('stream-json/streamers/stream-array.js')
 
     const pipeline = (fs.createReadStream(resolvePath(conversationsPath)) as unknown as NodeJS.ReadableStream)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .pipe(parser() as any)
+      .pipe((parser as any).asStream())
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .pipe(streamArray() as any)
+      .pipe((streamArray as any).asStream())
 
     let convBatch: ReturnType<typeof mapConversation>[] = []
     let msgBatch: ReturnType<typeof mapMessage>[] = []
@@ -144,6 +147,12 @@ async function main() {
         if (!m.uuid || !['human', 'assistant'].includes(m.sender as string)) continue
         msgBatch.push(mapMessage(conv, m))
         if (msgBatch.length >= BATCH) {
+          // Persist buffered conversations first so message FKs resolve.
+          if (convBatch.length) {
+            await flush('conversation', convBatch)
+            counts.conversations += convBatch.length
+            convBatch = []
+          }
           await flush('message', msgBatch)
           counts.messages += msgBatch.length
           msgBatch = []
