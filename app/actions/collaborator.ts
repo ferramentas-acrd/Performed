@@ -117,6 +117,75 @@ function computeLongestStreak(sortedDays: string[]): number {
   return max
 }
 
+const ThreadParams = z.object({
+  accountUuid: z.string().uuid(),
+  conversationUuid: z.string().uuid(),
+})
+
+export type ConversationMessage = {
+  uuid: string
+  sender: 'human' | 'assistant' | string
+  text: string
+  charCount: number
+  nFiles: number
+  nAttachments: number
+  createdAt: string | null
+}
+
+export type ConversationThread = {
+  conversation: {
+    uuid: string
+    name: string | null
+    summary: string | null
+    messageCount: number
+    createdAt: string | null
+  }
+  user: { accountUuid: string; fullName: string | null; email: string | null }
+  messages: ConversationMessage[]
+}
+
+export async function getConversationThread(input: unknown): Promise<ConversationThread | null> {
+  await requireAdmin()
+  const { accountUuid, conversationUuid } = ThreadParams.parse(input)
+  const supabase = await createClient()
+
+  const [convRes, userRes, msgsRes] = await Promise.all([
+    supabase.from('conversation').select('uuid, name, summary, message_count, created_at')
+      .eq('uuid', conversationUuid).eq('account_uuid', accountUuid).maybeSingle(),
+    supabase.from('app_user').select('account_uuid, full_name, email')
+      .eq('account_uuid', accountUuid).maybeSingle(),
+    supabase.from('message').select('uuid, sender, text, char_count, n_files, n_attachments, created_at')
+      .eq('conversation_uuid', conversationUuid).eq('account_uuid', accountUuid)
+      .order('created_at', { ascending: true }).limit(5000),
+  ])
+
+  if (!convRes.data) return null
+
+  return {
+    conversation: {
+      uuid: convRes.data.uuid as string,
+      name: convRes.data.name ?? null,
+      summary: convRes.data.summary ?? null,
+      messageCount: Number(convRes.data.message_count ?? 0),
+      createdAt: convRes.data.created_at ?? null,
+    },
+    user: {
+      accountUuid: userRes.data?.account_uuid ?? accountUuid,
+      fullName: userRes.data?.full_name ?? null,
+      email: userRes.data?.email ?? null,
+    },
+    messages: (msgsRes.data ?? []).map(m => ({
+      uuid: m.uuid as string,
+      sender: (m.sender as string) ?? 'unknown',
+      text: (m.text as string) ?? '',
+      charCount: Number(m.char_count ?? 0),
+      nFiles: Number(m.n_files ?? 0),
+      nAttachments: Number(m.n_attachments ?? 0),
+      createdAt: m.created_at ?? null,
+    })),
+  }
+}
+
 export async function getImportRuns() {
   await requireAdmin()
   const supabase = await createClient()

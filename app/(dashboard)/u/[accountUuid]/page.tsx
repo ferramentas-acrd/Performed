@@ -84,7 +84,7 @@ export default async function CollaboratorPage({ params, searchParams }: Props) 
           </div>
 
           {/* Conversations */}
-          <ConversationList conversations={conversations} />
+          <ConversationList conversations={conversations} accountUuid={accountUuid} from={from} to={to} />
         </>
       )}
 
