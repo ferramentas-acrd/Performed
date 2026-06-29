@@ -44,7 +44,7 @@ export default async function CollaboratorPage({ params, searchParams }: Props) 
             </Button>
           </Link>
           <CollaboratorSelect users={users} value={accountUuid} from={from} to={to} />
-          <DateRangePicker value={{ from, to }} onChange={() => {}} />
+          <DateRangePicker value={{ from, to }} />
         </div>
       </div>
 

@@ -36,7 +36,7 @@ export default async function OverviewPage({
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3 justify-between">
         <div className="flex flex-wrap items-center gap-3">
-          <DateRangePicker value={{ from, to }} onChange={() => {}} />
+          <DateRangePicker value={{ from, to }} />
           <CollaboratorSelect users={users} from={from} to={to} />
         </div>
         <div className="flex items-center gap-2">
