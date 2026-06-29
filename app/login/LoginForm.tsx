@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -17,14 +17,19 @@ export default function LoginForm() {
     e.preventDefault()
     setLoading(true)
     setError('')
-    const supabase = createClient(
+
+    const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
+
     const { error: err } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${window.location.origin}/` },
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
     })
+
     setLoading(false)
     if (err) setError(err.message)
     else setSent(true)
@@ -43,7 +48,9 @@ export default function LoginForm() {
         {sent ? (
           <div className="text-center space-y-2">
             <p className="text-sm font-medium">Link enviado!</p>
-            <p className="text-sm text-muted-foreground">Verifique seu e-mail <strong>{email}</strong> e clique no link para entrar.</p>
+            <p className="text-sm text-muted-foreground">
+              Verifique seu e-mail <strong>{email}</strong> e clique no link para entrar.
+            </p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-3">
